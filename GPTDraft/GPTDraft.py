@@ -36,8 +36,7 @@ for settings in settingsObj:
 # Load your API key from an environment variable or secret management service
 openai.api_key = a_key
 
-#Set URL for DALL-E
-url = "https://api.openai.com/v1/images/generations"
+
 
 #Global Variables
 tokens = 0
@@ -69,7 +68,7 @@ total_words = 0
 total_sections = func.count_parts(book)
 completed_sections = 0
 
-print("Title: "+subject+"")
+print("║ Title: "+subject+"")
 savefile = subject + ".txt"
 
 serialBook = func.serialize_book(book)
@@ -78,25 +77,38 @@ for i, chapter in enumerate(book):
     for j, section in enumerate(chapter):
         for k, part in enumerate(section):
             if book[i][j][k] is not None:
-                print("Writing About The " + str(book[i][j][k]) + " of " + subject)
+                print("║ Writing About " + str(book[i][j][k]))
                 if(j==0):
-                    prompt = "Write me a 1 paragraph brief introduction for a chapter about the " + book[i][j][k] + " of " + subject + "."
+                    prompt = "You are a professional writer. Write me 1-2 paragraphs for a brief introduction for a chapter about " + str(book[i][j][k]) + " of " + str(subject) + "."
                 else:
-                    prompt = "Write me 8-10 extensive detailed and informative paragraphs for a chapter named '" + book[i][j][k] + "' in a book about the subject of " + subject + ". Only write strictly about " + book[i][j][k] + " and do not progess into any other topics/eras/areas/sections that lie outside of the " + book[i][j][k] + ". Remember you need not introduce the topic/subject of the book as it's already been covered in previous chapters."
-                Repo = func.PR("You are a professional writer.  For reference of what NOT to write about, here are the chpaters of the book:" + serialBook + ". " + prompt, "", 2048, 0.85)
-                response = "\n\n" + book[i][j][k] + "\n" + Repo['content']
+                    #prompt = "You are a professional non-fiction writer. You always ensure your writings are factual. Write me 8-10 extensive detailed and informative paragraphs for a chapter named '" + book[i][j][k] + "' in a book about the subject of " + subject + ". Only write strictly about " + book[i][j][k] + " and do not progess into any other topics/eras/areas/sections that lie outside of " + book[i][j][k] + ". Do not include the title of the chapter or a summary/conclusion at the end."
+                    prompt = "You are a professional writer who has been commissioned to write on the subject of " + subject + " for a non-fiction book that emphasizes factual information. The part you will be writing is focused exclusively on " + book[i][j][k] + ", which is located in the section titled '" + book[i][j][0] + "' which is itself located in a chapter titled '" + book[i][0][0] + "'. Please provide 8-12 detailed and informative paragraphs that delve deeply into this topic without straying into other areas or eras. Be sure to include relevant examples and specific details that support your arguments. Avoid including a summary or conclusion at the end of the part."
+                Repo = func.PR(prompt, "", 2048, g_temp, g_pres, g_freq)
+                if j > 0 and k == 0:
+                    preText = "h2"
+                elif j == 0 and k == 0:
+                    preText = "h1"
+                else:
+                    preText = "h3"
+                response = "\n\n" + preText[:2] + book[i][j][k] + "\n" + Repo['content']
                 tokens += Repo['tokens']
+                thisTokens = Repo['tokens']
                 totalCost += Repo['cost']
+                thisCost = round(Repo['cost'],4)
                 num_chars = len(response)
                 num_words = len(response.split(' '))
                 total_chars += num_chars
                 total_words += num_words
                 completed_sections += 1
-                print(f" {completed_sections}/{total_sections} sections completed ({completed_sections/total_sections*100:.2f}%). {num_chars} CHAR. {num_words} WORDS. Total: {total_chars} CHAR. {total_words} WORDS. Saving...")
-                func.append_text_to_file(response, savefile)
+                totalCost == round(totalCost,4)
+                thisCost == round(thisCost,4)
 
-print(f"All sections completed. {total_chars} CHAR. {total_words} WORDS saved!") 
+                print(f"║ {completed_sections}/{total_sections} sections completed ({completed_sections/total_sections*100:.2f}%).\n║ Entry: {num_chars} CHAR. {num_words} WORDS. {thisTokens} Tokens. ${thisCost}  Cost.\n║ Total: {total_chars} CHAR. {total_words} WORDS. {tokens} Tokens. ${totalCost}  Cost. Saving...")
+                func.append_text_to_file(response, savefile)
+                print("╠═════════════════════════════════════════════════════════════════════════════════")
+
+print(f"║ All sections completed. {total_chars} CHAR. {total_words} WORDS saved!") 
 
 outputfile = savefile.replace('.txt', '.docx')
-func.txt_to_docx(savefile,outputfile,town)
+func.txt_to_docx(savefile,outputfile,subject,d_key,d_sec,serialBook,documentType)
 

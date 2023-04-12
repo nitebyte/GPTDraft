@@ -1,6 +1,9 @@
 import openai
 import os
 import csv
+import requests
+import json
+import sys
 from io import BytesIO
 from docx import Document
 from docx.shared import Inches, Pt
@@ -43,10 +46,18 @@ def PR(prompt, system_content="", token=24, temperature=0.35, pp=0.15, fp=0.05):
 
 
 def append_text_to_file(text, file_name):
+    # Extract the folder name by removing the file extension
+    folder_name = os.path.splitext(file_name)[0]
+    
+    # Create the folder if it does not exist
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+
     # Open a file in "append+" mode, which creates the file if it does not exist and appends new content to the end of the file
-    with open(file_name, "a+") as f:
+    with open(os.path.join(folder_name, file_name), "a+", encoding="utf-8") as f:
         # Write the given text to the end of the file, followed by a newline character
-        f.write(text + "\n")
+        text += '\n'
+        f.write(text)
 
 
 
@@ -98,7 +109,7 @@ def serialize_book(book):
         for sectionNum, section in enumerate(chapter):
             for partNum, part in enumerate(section):
                 if part:
-                    serialized += f"{chapterNum}.{sectionNum}.{partNum} {part},"
+                    serialized += f"{part},"
     return serialized.rstrip(",")  # Remove the trailing comma before returning
 
 
@@ -116,90 +127,186 @@ def count_parts(book):
 def Title(text, place):
     return text[6:]
 
-def txt_to_docx(txt_file, docx_file,town):
+def txt_to_docx(txt_file, docx_file,bookSubject,api,d_sec,serialBook,documentType):
+    bookSubtitle = PR("Generate a short subtitle for a book titled " + bookSubject + " and is the following type of book:" + documentType + ". The chapters in the book are: " + serialBook, "", 100, 0.75)['content']
+    #Set URL for DALL-E
+    url = "https://api.openai.com/v1/images/generations"
+    print("║ Starting Conversion")
     # Create a new Document
     document = Document()
+    print("║ .docx Created")
     # Set the page size and margins
     section = document.sections[0]
-    section.page_width = Inches(4)
-    section.page_height = Inches(6)
-    section.left_margin = Inches(0.4)
-    section.right_margin = Inches(0.4)
-    section.top_margin = Inches(0.4)
-    section.bottom_margin = Inches(0.4)
+    section.page_width = Inches(5)
+    section.page_height = Inches(8)
+    section.left_margin = Inches(0.375)
+    section.right_margin = Inches(0.375)
+    section.top_margin = Inches(0.25)
+    section.bottom_margin = Inches(0.25)
+    print("║ Page Size & Margins Set")
+
+
+    # Add half-title page
+    title_paragraph = document.add_paragraph()
+    title_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_run = title_paragraph.add_run(bookSubject)
+    title_run.font.size = Pt(18)
+    title_run.bold = True
+    document.add_page_break()
+    print("║ Title Page Created")
+
 
      # Add title page
     title_paragraph = document.add_paragraph()
     title_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_run = title_paragraph.add_run("Exploring " + town)
-    title_run.font.size = Pt(18)
+    title_run = title_paragraph.add_run(bookSubject)
+    title_run.font.size = Pt(20)
     title_run.bold = True
-    title_paragraph.add_run("\n\nYour Guide to History, Culture, and Fun")
+    title_paragraph.add_run("\n\n" + bookSubtitle).italic = True
+    title_paragraph.add_run("\n\nBenjamin Sanders").bold = True
     document.add_page_break()
+    print("║ Title Page Created")
 
     # Add copyright page
     copyright_paragraph = document.add_paragraph()
     copyright_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    copyright_paragraph.add_run("Copyright 2023 {Your Name}").font.size = Pt(8)
-
-    # Set the position of the copyright notice to the bottom of the copyright page
-    copyright_paragraph_format = copyright_paragraph.paragraph_format
-    copyright_paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    copyright_paragraph_format.space_after = Pt(0)
+    copyright_paragraph.add_run("Copyright © 2023 by Benjamin Sanders\n\nAll rights reserved.\n\nThis publication aims to provide factual and authoritative information on the topic discussed. It is important to note that neither the author nor the publisher provides legal, investment, accounting, or any other professional services. Although the author and publisher have taken every effort to ensure the accuracy and comprehensiveness of the content presented, they do not make any express or implied warranties of merchantability or fitness for a particular purpose. The information provided in this book may not be suitable for every situation, and readers are advised to seek professional advice as necessary. The author and publisher will not be held liable for any financial or other damages resulting from the use of this information.\n\nCover art and illustrations by DALL-E 2\n\nProofreading provided by GPT4\n\nEditing services by Benjamin Sanders\n\nGPT/DALL-E 2 integration software developed by Benjamin Sanders").font.size = Pt(8)
+    print("║ Copyright Page Added")
     document.add_page_break()
 
     # Add dedication page
     dedication_paragraph = document.add_paragraph()
     dedication_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     dedication_paragraph.add_run("Dedication\n\n")
-    dedication_paragraph.add_run(PR("Please write me 1 paragraph for the dedication of a history, culture, reference, and travel guide for " + town + ", considering it was written by one person and should be a generic dedication to travelers and explorers.", "You are a professional writer for Lonely Planet writing the dedication page of a book about the history, culture, reference, and travel guide for small town of " + town + ".Make sure to vary your words and grammar so phrases do not repeat too much.", 0.5, 1024)).italic = True
+    dedication_paragraph.add_run(PR("Craft a generic one-paragraph dedication for a book about " + bookSubject + " that is authored by a single individual. Please consider using language that would apply universally to readers of the book, rather than addressing any particular individual or group of people.", "", 1024, 0.5)['content']).italic = True
     document.add_page_break()
+    print("║ Dedication Page Added")
 
-    # Read the input text file
-    with open(txt_file, 'r') as f:
+    # Set the folder name
+    folder_name = os.path.splitext(txt_file)[0]
+
+    # Read the input text file from inside the folder
+    with open(os.path.join(folder_name, txt_file), 'r', encoding='utf-8') as f:
         txt_lines = f.readlines()
-        txt_lines = [line for line in txt_lines if line.strip()]
+        txt_lines = [line for line in txt_lines if line.strip()]    
 
     # Process the text file lines
     for line in txt_lines:
-        if line.startswith('H1'):
+        if line.startswith('h1'):
+            print("║ Detected Heading Level 1")
             document.add_page_break()
             title = line[2:].strip()
             heading = document.add_heading(level=1)
-            heading_run = heading.add_run(title)
+            heading_run = heading.add_run(title + "\n")
             heading_run.font.size = Pt(18)
             heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer api_key"
+                "Authorization": f"Bearer " + api
             }
-            imgprompt = PR("I want you to write a DALL-E image generation prompt to generate an image related to " + title + " in the town of " + town, "You write image generation prompts for DALL-E from the given input request. For example, if you were asked to write a prompt for an image about the geography of Damascus, Virginia, you may output: Mountainous terrain with dense forests and trees, peaceful and serene, in the vicinity of Damascus, VA, USA. Shot on a Canon EOS R6 with a Canon RF 24-105mm f/4L IS USM Lens, 4K film still, natural lighting, vibrant colors, crisp details, and soft shadows.", 0.5, 2048)
-            print("Generating Image For: " + title + " : " + town)
+            imgprompt = PR("I want you to write a DALL-E image generation prompt to generate a photo that represents a chapter of a book about " + title + " in regards to " + bookSubject + ". For example, if you were asked to write a prompt for an image about the geography of Damascus, Virginia, you may output: Mountainous terrain with dense forests and trees, peaceful and serene, in the vicinity of Damascus, VA, USA. Shot on a Canon EOS R6 with a Canon RF 24-105mm f/4L IS USM Lens, 4K film still, natural lighting, vibrant colors, crisp details, and soft shadows. There is a hard limit of 300 characters in your responce - any longer and it will be cut off.", "", 100, 0.5)
+            print("║ Generating Image For: " + title + " : " + bookSubject)
             data = {
-                "prompt": imgprompt,
+                "prompt": imgprompt["content"],
                 "n": 1,
                 "size": "1024x1024"
             }
-
+            #print(imgprompt)
             response = requests.post(url, headers=headers, data=json.dumps(data))
 
             if response.status_code == 200:
+                print("Good Image")
                 result = response.json()
                 # Download the image from a link
                 image_url = result['data'][0]['url']
                 response = requests.get(image_url)
-                img = BytesIO(response.content)
+                img_content = response.content
+
+                # Create the folder if it doesn't exist
+                folder_name = bookSubject
+                try:
+                    if not os.path.exists(folder_name):
+                        os.makedirs(folder_name)
+
+                    # Save the image to the folder
+                    with open(os.path.join(folder_name, f"{title} - {bookSubject}.png"), "wb") as f:
+                        f.write(img_content)
+
+                    img = BytesIO(img_content)
+
+                except Exception as e:
+                    # Handle the exception
+                    print(f"Error saving image: {e}")
                 # Add a paragraph with an image
                 paragraph = document.add_paragraph()
                 paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER  # center the paragraph
                 run = paragraph.add_run()
-                run.add_picture(img, width=Inches(3))  # adjust width as necessary
+                run.add_picture(img, width=Inches(4))  # adjust width as necessary
+                #document.add_page_break()
+            else:
+                print("Bad Image")
 
-        elif line.startswith('H2'):
+        elif line.startswith('h2'):
+            print("║ Detected Heading Level 2")
             title = line[2:].strip()
             heading = document.add_heading(level=2)
-            heading_run = heading.add_run(title)
+            heading_run = heading.add_run(title + "\n")
             heading_run.font.size = Pt(16)
+            heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if d_sec == "Y":
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer " + api
+                }
+                imgprompt = PR("I want you to write a DALL-E image generation prompt to generate a photo that represents a chapter of a book about " + title + " in regards to " + bookSubject + ". For example, if you were asked to write a prompt for an image about the geography of Damascus, Virginia, you may output: Mountainous terrain with dense forests and trees, peaceful and serene, in the vicinity of Damascus, VA, USA. Shot on a Canon EOS R6 with a Canon RF 24-105mm f/4L IS USM Lens, 4K film still, natural lighting, vibrant colors, crisp details, and soft shadows. There is a hard limit of 300 characters in your responce - any longer and it will be cut off.", "", 100, 0.5)
+                print("║ Generating Image For: " + title + " : " + bookSubject)
+                data = {
+                    "prompt": imgprompt["content"],
+                    "n": 1,
+                    "size": "1024x1024"
+                }
+                #print(imgprompt)
+
+                response = requests.post(url, headers=headers, data=json.dumps(data))
+
+                if response.status_code == 200:
+                    print("Good Image")
+                    result = response.json()
+                    # Download the image from a link
+                    image_url = result['data'][0]['url']
+                    response = requests.get(image_url)
+                    img_content = response.content
+
+                    # Create the folder if it doesn't exist
+                    folder_name = bookSubject
+                    try:
+                        if not os.path.exists(folder_name):
+                            os.makedirs(folder_name)
+
+                        # Save the image to the folder
+                        with open(os.path.join(folder_name, f"{title} - {bookSubject}.png"), "wb") as f:
+                            f.write(img_content)
+
+                        img = BytesIO(img_content)
+
+                    except Exception as e:
+                        # Handle the exception
+                        print(f"Error saving image: {e}")
+                    # Add a paragraph with an image
+                    paragraph = document.add_paragraph()
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER  # center the paragraph
+                    run = paragraph.add_run()
+                    run.add_picture(img, width=Inches(4))  # adjust width as necessary
+                    #document.add_page_break()
+                else:
+                    print("Bad Image")
+
+        elif line.startswith('h3'):
+            print("║ Detected Heading Level 3 - NoImg")
+            title = line[2:].strip()
+            heading = document.add_heading(level=3)
+            heading_run = heading.add_run(title)
+            heading_run.font.size = Pt(14)
             heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         else:
@@ -207,20 +314,9 @@ def txt_to_docx(txt_file, docx_file,town):
             paragraph = document.add_paragraph(content)
             paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-    # Save the generated DOCX file
+    # Save the DOCX file to the folder
+    docx_file = os.path.join(folder_name, bookSubject + ".docx")
     document.save(docx_file)
-
-
-def read_csv(csv_file):
-    towns = []
-
-    with open(csv_file, newline='') as f:
-        reader = csv.reader(f)
-        for row in reader:
-            town, state = row[0].split(', ')
-            towns.append([town, state])
-
-    return towns
 
 
 
