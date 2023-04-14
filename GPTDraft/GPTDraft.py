@@ -31,7 +31,7 @@ for settings in settingsObj:
     g_temp = float(settings["g_temp"])  # The temperature to use for generating the results
     g_freq = float(settings["g_freq"])   # The frequency penalty to use for generating the results
     g_pres = float(settings["g_pres"])   # The presence penalty to use for generating the results
-    g_tok = int(settings["g_tok"])     # Man tokens to use in the results
+    g_tok = int(settings["g_tok"])     # Max tokens to use in the results
 
 # Load your API key from an environment variable or secret management service
 openai.api_key = a_key
@@ -82,7 +82,7 @@ for i, chapter in enumerate(book):
                     prompt = "You are a professional writer. Write me 1-2 paragraphs for a brief introduction for a chapter about " + str(book[i][j][k]) + " of " + str(subject) + "."
                 else:
                     #prompt = "You are a professional non-fiction writer. You always ensure your writings are factual. Write me 8-10 extensive detailed and informative paragraphs for a chapter named '" + book[i][j][k] + "' in a book about the subject of " + subject + ". Only write strictly about " + book[i][j][k] + " and do not progess into any other topics/eras/areas/sections that lie outside of " + book[i][j][k] + ". Do not include the title of the chapter or a summary/conclusion at the end."
-                    prompt = "You are a professional writer who has been commissioned to write on the subject of " + subject + " for a non-fiction book that emphasizes factual information. The part you will be writing is focused exclusively on " + book[i][j][k] + ", which is located in the section titled '" + book[i][j][0] + "' which is itself located in a chapter titled '" + book[i][0][0] + "'. Please provide 8-12 detailed and informative paragraphs that delve deeply into this topic without straying into other areas or eras. Be sure to include relevant examples and specific details that support your arguments. Avoid including a summary or conclusion at the end of the part."
+                    prompt = "You are a professional hard fiction writer who has been commissioned to write on the subject of " + subject + " for a fiction book that emphasizes canonical and/or in-universe information. The part you will be writing is focused exclusively on " + book[i][j][k] + ", which is located in the section titled '" + book[i][j][0] + "' which is itself located in a chapter titled '" + book[i][0][0] + "'. Please provide 8-12 detailed and informative paragraphs that delve deeply into this topic without straying into other areas or eras. Be sure to include relevant examples and specific details that support your arguments. Avoid including a summary or conclusion at the end of the part."
                 Repo = func.PR(prompt, "", 2048, g_temp, g_pres, g_freq)
                 if j > 0 and k == 0:
                     preText = "h2"

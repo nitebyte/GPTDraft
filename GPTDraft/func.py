@@ -128,7 +128,22 @@ def Title(text, place):
     return text[6:]
 
 def txt_to_docx(txt_file, docx_file,bookSubject,api,d_sec,serialBook,documentType):
-    bookSubtitle = PR("Generate a short subtitle for a book titled " + bookSubject + " and is the following type of book:" + documentType + ". The chapters in the book are: " + serialBook, "", 100, 0.75)['content']
+    # Prompt the user to enter the subject and document type
+    print("╠═════════════════════════════════════════════════════════════════════════════════")
+    ibookName = input("║ Enter The Name Of The Book: ")
+    print("╠═════════════════════════════════════════════════════════════════════════════════")
+    bookSubtitle = input("║ Enter The Subtitle (Or Leave Blank To Auto-Generate): ")
+    print("╠═════════════════════════════════════════════════════════════════════════════════")
+    ibookAuthor = input("║ Enter The Author Name: ")
+    print("╠═════════════════════════════════════════════════════════════════════════════════")
+    ibookHeight = 9
+    ibookWidth = 6
+    ibookWidth = input("║ Enter The Book Width In Inches: ")
+    print("╠═════════════════════════════════════════════════════════════════════════════════")
+    ibookHeight = input("║ Enter The Book Height In Inches: ")
+
+    if len(bookSubtitle)<1:
+        bookSubtitle = PR("Generate a short subtitle for a book titled " + bookSubject + " and is the following type of book:" + documentType + ". The chapters in the book are: " + serialBook, "", 100, 0.75)['content']
     #Set URL for DALL-E
     url = "https://api.openai.com/v1/images/generations"
     print("║ Starting Conversion")
@@ -137,8 +152,8 @@ def txt_to_docx(txt_file, docx_file,bookSubject,api,d_sec,serialBook,documentTyp
     print("║ .docx Created")
     # Set the page size and margins
     section = document.sections[0]
-    section.page_width = Inches(5)
-    section.page_height = Inches(8)
+    section.page_width = Inches(ibookWidth)
+    section.page_height = Inches(ibookHeight)
     section.left_margin = Inches(0.375)
     section.right_margin = Inches(0.375)
     section.top_margin = Inches(0.25)
@@ -163,14 +178,14 @@ def txt_to_docx(txt_file, docx_file,bookSubject,api,d_sec,serialBook,documentTyp
     title_run.font.size = Pt(20)
     title_run.bold = True
     title_paragraph.add_run("\n\n" + bookSubtitle).italic = True
-    title_paragraph.add_run("\n\nBenjamin Sanders").bold = True
+    title_paragraph.add_run("\n\n" + ibookAuthor + "").bold = True
     document.add_page_break()
     print("║ Title Page Created")
 
     # Add copyright page
     copyright_paragraph = document.add_paragraph()
     copyright_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    copyright_paragraph.add_run("Copyright © 2023 by Benjamin Sanders\n\nAll rights reserved.\n\nThis publication aims to provide factual and authoritative information on the topic discussed. It is important to note that neither the author nor the publisher provides legal, investment, accounting, or any other professional services. Although the author and publisher have taken every effort to ensure the accuracy and comprehensiveness of the content presented, they do not make any express or implied warranties of merchantability or fitness for a particular purpose. The information provided in this book may not be suitable for every situation, and readers are advised to seek professional advice as necessary. The author and publisher will not be held liable for any financial or other damages resulting from the use of this information.\n\nCover art and illustrations by DALL-E 2\n\nProofreading provided by GPT4\n\nEditing services by Benjamin Sanders\n\nGPT/DALL-E 2 integration software developed by Benjamin Sanders").font.size = Pt(8)
+    copyright_paragraph.add_run("Copyright © 2023 by " + ibookAuthor + "\n\nAll rights reserved.\n\nThis publication aims to provide factual and authoritative information on the topic discussed. It is important to note that neither the author nor the publisher provides legal, investment, accounting, or any other professional services. Although the author and publisher have taken every effort to ensure the accuracy and comprehensiveness of the content presented, they do not make any express or implied warranties of merchantability or fitness for a particular purpose. The information provided in this book may not be suitable for every situation, and readers are advised to seek professional advice as necessary. The author and publisher will not be held liable for any financial or other damages resulting from the use of this information.\n\nCover art and illustrations by DALL-E 2\n\nProofreading provided by GPT4\n\nEditing services by " + ibookAuthor + "\n\nGPT/DALL-E 2 integration software developed by " + ibookAuthor + "").font.size = Pt(8)
     print("║ Copyright Page Added")
     document.add_page_break()
 
